@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Navbar with Dropdown Lists and Checkboxes</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/5.3.0/css/bootstrap.min.css">
+</head>
+<body>
+  <nav class="navbar navbar-expand-lg navbar-light bg-light">
+    <div class="container-fluid">
+      <a class="navbar-brand" href="#">Dashboard</a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav">
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle" href="#" id="dropdown-causes" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+              Причины
+            </a>
+            <ul class="dropdown-menu" aria-labelledby="dropdown-causes">
+              <li><span class="dropdown-item"><input type="checkbox" id="cause1"> <label for="cause1">возврат/зачет</label></span></li>
+              <li><span class="dropdown-item"><input type="checkbox" id="cause2"> <label for="cause2">вычеты</label></span></li>
+              <li><span class="dropdown-item"><input type="checkbox" id="cause3"> <label for="cause3">документы</label></span></li>
+              <li><span class="dropdown-item"><input type="checkbox" id="cause4"> <label for="cause4">льготы</label></span></li>
+              <li><span class="dropdown-item"><input type="checkbox" id="cause5"> <label for="cause5">недоимка</label></span></li>
+              <li><span class="dropdown-item"><input type="checkbox" id="cause6"> <label for="cause6">расчеты</label></span></li>
+              <li><span class="dropdown-item"><input type="checkbox" id="cause7"> <label for="cause7">схемы</label></span></li>
+            </ul>
+          </li>
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle" href="#" id="dropdown-consequences" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+              Следствия
+            </a>
+            <ul class="dropdown-menu" aria-labelledby="dropdown-consequences">
+              <li><span class="dropdown-item"><input type="checkbox" id="consequence1"> <label for="consequence1">документы</label></span></li>
+              <li><span class="dropdown-item"><input type="checkbox" id="consequence2"> <label for="consequence2">МНК</label></span></li>
+              <li><span class="dropdown-item"><input type="checkbox" id="consequence3"> <label for="consequence3">отказ в возврате/зачете</label></span></li>
+              <li><span class="dropdown-item"><input type="checkbox" id="consequence4"> <label for="consequence4">отказ в вычете</label></span></li>
+              <li><span class="dropdown-item"><input type="checkbox" id="consequence5"> <label for="consequence5">отказ в льготе</label></span></li>
+              <li><span class="dropdown-item"><input type="checkbox" id="consequence6"> <label for="consequence6">штрафные санкции</label></span></li>
+            </ul>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
