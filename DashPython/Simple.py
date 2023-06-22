@@ -26,7 +26,7 @@ def select_method(data, reduced_json):
     return final_result
 
 # Read the data from the provided link
-data = pd.read_excel('https://github.com/catauggie/ChatGPT/blob/main/%D0%A1%D0%A3%D0%94%D0%AB_PowerBI.xlsx', engine='openpyxl')
+data = pd.read_excel(r'C:\Users\admin\Desktop\ПРОЕКТЫ ДЛЯ БИЗНЕСА\PowerBI\СУДЫ_PowerBI.xlsx')
 
 # Define filter options
 filter_options = {
@@ -37,6 +37,9 @@ filter_options = {
 
 # Create the Dash app
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
+
+list1 = []
+for i in filter_options
 
 # Define the layout
 app.layout = dbc.Container(
@@ -49,26 +52,28 @@ app.layout = dbc.Container(
                     html.Div(
                         id="filter-div",
                         children=[
+                            
                             html.H3("Filter"),
+
                             dcc.Dropdown(
-                                id="dropdown-toggle",
-                                options=[{"label": key, "value": key} for key in filter_options.keys()],
+                                id="filter_dropdown",
+                                options=[{"label": key, "value": key} for key in filter_options['причины']],
                                 value=None,
                                 multi=True
                             ),
-                            dcc.Dropdown(
+                           ''' dcc.Dropdown(
                                 id="dropdown-item",
                                 options=[],
                                 value=None,
                                 multi=True
-                            ),
+                            ),'''
                         ]
                     ),
                     md=4
                 ),
                 dbc.Col(
                     dash_table.DataTable(
-                        id="table",
+                        id="table-container",
                         columns=[
                             {"name": "Case Number", "id": "case_number"},
                             {"name": "Why Argument", "id": "why_argument"}
@@ -84,7 +89,8 @@ app.layout = dbc.Container(
                             "overflowY": "auto",
                             "overflowX": "auto"
                         },
-                        virtualization=True
+                        virtualization=True,
+                        data=data[['case_number', 'why_argument']].to_dict('records')
                     ),
                     md=8
                 ),
@@ -97,35 +103,33 @@ app.layout = dbc.Container(
 
 # Callback to update the dropdown items based on the selected toggle value
 @app.callback(
-    dash.dependencies.Output('dropdown-item', 'options'),
-    [dash.dependencies.Input('dropdown-toggle', 'value')]
+    dash.dependencies.Output('table-container', 'data'),
+    dash.dependencies.Input('filter_dropdown', 'value')
 )
-def update_dropdown_items(selected_values):
-    options = []
-    if selected_values:
-        for key in selected_values:
-            options.extend([{"label": val, "value": val} for val in filter_options.get(key, [])])
-    return options
+def update_dropdown_items(value):
+    data1 = data[data['причины'].isin(value)]
+    return data1.to_dict('records')
+    # return data.loc[:5].to_dict('records')
 
 # Callback to update the table based on the selected dropdown values
-@app.callback(
-    dash.dependencies.Output('table', 'data'),
-    [dash.dependencies.Input('dropdown-item', 'value')]
-)
-def update_table_data(selected_values):
-    reduced_json = {}
-    for key in filter_options.keys():
-        values = filter_options[key]
-        if selected_values:
-            reduced_json[key] = [val for val in values if val in selected_values]
-        else:
-            reduced_json[key] = []
-
-    if selected_values:
-        filtered_data = select_method(data, reduced_json)
-        return filtered_data[["case_number", "why_argument"]].to_dict("records")
-    else:
-        return []
+# @app.callback(
+#     dash.dependencies.Output('table', 'data'),
+#     [dash.dependencies.Input('dropdown-item', 'value')]
+# )
+# def update_table_data(selected_values):
+#     reduced_json = {}
+#     for key in filter_options.keys():
+#         values = filter_options[key]
+#         if selected_values:
+#             reduced_json[key] = [val for val in values if val in selected_values]
+#         else:
+#             reduced_json[key] = []
+#
+#     if selected_values:
+#         filtered_data = select_method(data, reduced_json)
+#         return filtered_data[["case_number", "why_argument"]].to_dict("records")
+#     else:
+#         return []
 
 # Run the Dash app
 if __name__ == '__main__':
