@@ -12,7 +12,7 @@ def make_label_value(filter_options):
     for key, values in filter_options.items():
         options = []
         for i, value in enumerate(values):
-            option = {'label': f'{key}_{i}', 'value': value}
+            option = {'label': value, 'value': value}
             options.append(option)
         label_value.append(options)
     return label_value
@@ -23,7 +23,6 @@ app = Dash(__name__, suppress_callback_exceptions=True)
 
 app.layout = html.Div([
     html.Div(id='dynamic-dropdowns'),
-    html.Button('Create JSON', id='create-json-button'),
     html.Div(id='decoded-json-output')
 ])
 
@@ -48,13 +47,9 @@ def generate_dropdowns(_):
 
 @app.callback(
     Output('decoded-json-output', 'children'),
-    Input('create-json-button', 'n_clicks'),
-    *[Input(f'demo-dropdown-{s}', 'value') for s in range(len(label_value_lists))]
+    [Input(f'demo-dropdown-{s}', 'value') for s in range(len(label_value_lists))]
 )
-def create_json(n_clicks, *selected_values):
-    if n_clicks is None:
-        return ''
-
+def create_json(*selected_values):
     selected_items = {}
     for s, values in enumerate(selected_values):
         key = list(filter_options.keys())[s]
