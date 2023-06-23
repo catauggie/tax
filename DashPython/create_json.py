@@ -24,7 +24,6 @@ app = Dash(__name__, suppress_callback_exceptions=True)
 app.layout = html.Div([
     html.Div(id='dynamic-dropdowns'),
     html.Button('Create JSON', id='create-json-button'),
-    html.Div(id='json-output'),
     html.Div(id='decoded-json-output')
 ])
 
@@ -48,23 +47,21 @@ def generate_dropdowns(_):
     return dropdowns
 
 @app.callback(
-    Output('json-output', 'children'),
     Output('decoded-json-output', 'children'),
     Input('create-json-button', 'n_clicks'),
     *[Input(f'demo-dropdown-{s}', 'value') for s in range(len(label_value_lists))]
 )
 def create_json(n_clicks, *selected_values):
     if n_clicks is None:
-        return '', ''
+        return ''
 
     selected_items = {}
     for s, values in enumerate(selected_values):
         key = list(filter_options.keys())[s]
         selected_items[key] = values
 
-    json_data = json.dumps(selected_items, indent=4, ensure_ascii=False)
-    parsed_json = json.loads(json_data)
-    return html.Pre(json_data), html.Pre(json.dumps(parsed_json, indent=4))
+    parsed_json = json.dumps(selected_items, indent=4, ensure_ascii=False)
+    return html.Pre(parsed_json)
 
 
 if __name__ == '__main__':
