@@ -64,8 +64,9 @@ def create_json(*selected_values):
 
     # Process selected data using the select_method function
     reduced_json = json.loads(parsed_json)
-    selected_data = select_method(df, reduced_json)[['case_number', 'why_argument']]
+    res = select_method(df, reduced_json)#[['case_number', 'why_argument']]
 
+    selected_data = pd.concat(sort_by(res, 'case_number'))[['case_number', 'why_argument']].drop_duplicates()
     # Convert selected data to an HTML table
     table = html.Table(
         # Header
@@ -93,6 +94,15 @@ def select_method(data, reduced_json):
     final_result = pd.concat(concat_list).drop_duplicates()
 
     return final_result
+
+
+def sort_by(data, col_by_group):
+    col_by_group_list = pd.DataFrame(data[col_by_group].value_counts())
+    data_col_by_group_list = []
+    for s in range(len(col_by_group_list)):
+        data_col_by_group_s = data[data[col_by_group] == list(col_by_group_list.index)[s]]
+        data_col_by_group_list.append(data_col_by_group_s)
+    return data_col_by_group_list
 
 
 if __name__ == '__main__':
