@@ -29,17 +29,41 @@ label_value_lists = make_label_value(filter_options)
 # Load data from Excel file
 df = pd.read_excel(r'D:\python\DashPython\СУДЫ_PowerBI.xlsx')
 
-app = Dash(__name__, suppress_callback_exceptions=True)
+app = Dash(__name__, suppress_callback_exceptions=True, external_stylesheets=['https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css'])
 
 app.layout = html.Div([
-    html.Div(id='dynamic-dropdowns'),
-    html.Div(id='decoded-json-output'),
-    html.Div(id='table-info'),
-    html.Div(id='table-output', style={'maxHeight': '400px', 'overflow': 'scroll'}),
-    dcc.Graph(id='pie-chart'),
-    dcc.Graph(id='bar-chart'),
-    dcc.Graph(id='case-number-bar-chart')
+    dcc.Location(id='url', refresh=False),
+    html.Nav(
+        className='navbar navbar-expand-lg navbar-dark bg-dark',
+        children=[
+            html.A('Page 1', className='navbar-brand', href='/page-1'),
+            html.A('Page 2', className='navbar-brand', href='/page-2'),
+        ]
+    ),
+    html.Div(id='page-content')
 ])
+
+@app.callback(Output('page-content', 'children'), Input('url', 'pathname'))
+def render_page_content(pathname):
+    if pathname == '/page-1':
+        return html.Div([
+            html.Div(id='dynamic-dropdowns'),
+            html.Div(id='decoded-json-output'),
+            html.Div(id='table-info'),
+            html.Div(id='table-output', style={'maxHeight': '400px', 'overflow': 'scroll'}),
+            dcc.Graph(id='pie-chart'),
+            dcc.Graph(id='bar-chart'),
+            dcc.Graph(id='case-number-bar-chart')
+        ])
+    elif pathname == '/page-2':
+        return html.Div([
+            html.H1('Page 2'),
+            html.P('This is an empty page.')
+        ])
+    else:
+        return html.Div([
+            html.H1('404 - Page not found')
+        ])
 
 @app.callback(
     Output('dynamic-dropdowns', 'children'),
@@ -123,7 +147,6 @@ def select_method(data, reduced_json):
     final_result = pd.concat(concat_list).drop_duplicates()
 
     return final_result
-
 
 def sort_by(data, col_by_group):
     col_by_group_list = pd.DataFrame(data[col_by_group].value_counts())
