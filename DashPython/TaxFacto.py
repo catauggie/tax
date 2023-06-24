@@ -14,6 +14,13 @@ filter_options = {
         'Тема прецедента': ['авансовые платежи', 'ввоз и вывоз товаров', 'взыскание неосновательного обогащения', 'вычет (возмещение)', 'действия контрагента', 'доказывание вины', 'доходы от имущества', 'доходы физических лиц', 'злоупотребление правом', 'излишне уплаченный (взысканный) налог', 'истребование документов', 'кадастровая стоимость', 'налоговые декларации', 'налоговые льготы', 'налоговые ставки', 'налоговое резидентство', 'недополучение дохода', 'некоммерческие организации', 'неплательщики налога', 'неправомерная налогообложение', 'неправомерные решения и действия органов', 'облагаемая база налогообложения', 'облагаемый период', 'обязательная проверка', 'оспаривание налоговых решений', 'оспаривание решений налоговых органов', 'ответственность за нарушение налогового законодательства', 'отсутствие контроля налоговых платежей', 'понятие налогового правонарушения', 'порядок и сроки предоставления налоговой отчетности', 'представительство в налоговых органах', 'применение и толкование налогового законодательства', 'процедура предъявления налоговых требований', 'распределение налоговых доходов', 'система налогообложения', 'снижение налоговой нагрузки', 'соответствие налоговому законодательству', 'спорные вопросы налогообложения', 'споры о налоговых обязательствах', 'споры о праве собственности', 'споры о размере налоговых обязательств', 'статус налогоплательщика', 'статус налогового агента', 'требования налогового законодательства', 'трудовые отношения', 'удержание налога', 'уплата налога', 'уступка налоговых прав', 'утратившие силу нормативные акты', 'факторы учета в налоговом законодательстве'],
       }
 
+second_page_filter_options = {
+    'Причины (детализация)': ['заявлено право на получение льготы', 'применение пониженной налоговой ставки'],
+    'Следствия (детализация)': ['доначислен налог на имущество организаций', 'доначислена совокупность налогов', 'наложение штрафа'],
+    'Эпизод (статья)': ['статья 101 НК РФ', 'статья 381 НК РФ', 'статья 54.1 НК РФ'],
+    'Тема прецедента': ['кадастровая стоимость', 'налоговые льготы', 'объект налогообложения', 'признание имущества недвижимым']
+}
+
 def make_label_value(filter_options):
     label_value = []
     for key, values in filter_options.items():
@@ -25,6 +32,8 @@ def make_label_value(filter_options):
     return label_value
 
 label_value_lists = make_label_value(filter_options)
+second_page_label_value_lists = make_label_value(second_page_filter_options)
+
 
 # Load data from Excel file
 df = pd.read_excel(r'D:\python\DashPython\СУДЫ_PowerBI.xlsx')
@@ -57,8 +66,11 @@ def render_page_content(pathname):
         ])
     elif pathname == '/page-2':
         return html.Div([
-            html.H1('Page 2'),
-            html.P('This is an empty page.')
+            html.H1('Second Page'),
+            html.Div(id='second-page-dynamic-dropdowns'),
+            html.Div(id='second-page-decoded-json-output'),
+            html.Div(id='second-page-table-info'),
+            html.Div(id='second-page-table-output', style={'maxHeight': '400px', 'overflow': 'scroll'})
         ])
     else:
         return html.Div([
@@ -80,6 +92,25 @@ def generate_dropdowns(_):
                 multi=True,
             ),
             html.Div(id=f'dd-output-container-{l}')
+        ])
+        dropdowns.append(dropdown)
+    return dropdowns
+
+@app.callback(
+    Output('second-page-dynamic-dropdowns', 'children'),
+    Input('second-page-dynamic-dropdowns', 'id')
+)
+def generate_second_page_dropdowns(_):
+    dropdowns = []
+    for l in range(len(second_page_label_value_lists)):
+        dropdown = html.Div([
+            dcc.Dropdown(
+                options=second_page_label_value_lists[l],
+                id=f'second-page-demo-dropdown-{l}',
+                placeholder=f"{list(second_page_filter_options.keys())[l]}",
+                multi=True,
+            ),
+            html.Div(id=f'second-page-dd-output-container-{l}')
         ])
         dropdowns.append(dropdown)
     return dropdowns
@@ -129,6 +160,40 @@ def create_json(*selected_values):
     table_info = html.P(f"Число записей в таблице: {len(selected_data)}")
 
     return html.Pre(parsed_json), table_info, table, pie_chart, bar_chart, case_number_bar_chart
+
+@app.callback(
+    Output('second-page-decoded-json-output', 'children'),
+    Output('second-page-table-info', 'children'),
+    Output('second-page-table-output', 'children'),
+    [Input(f'second-page-demo-dropdown-{s}', 'value') for s in range(len(second_page_label_value_lists))]
+)
+def create_second_page_json(*selected_values):
+    selected_items = {}
+    for s, values in enumerate(selected_values):
+        key = list(second_page_filter_options.keys())[s]
+        selected_items[key] = values
+
+    parsed_json_second_page = json.dumps(selected_items, indent=4, ensure_ascii=False)
+    reduced_json_second_page = popping_null_json(json.loads(parsed_json_second_page))
+    res = select_method(df, reduced_json_second_page)
+
+    selected_data_second_page = pd.concat(sort_by(res, 'argument')).drop_duplicates()
+
+    # Convert selected data to an HTML table with scrolling
+    table_second_page = html.Table(
+        # Header
+        [html.Tr([html.Th(col) for col in selected_data_second_page[['argument', 'Прецедент']].columns])] +
+        # Rows
+        [html.Tr([html.Td(selected_data_second_page[['argument', 'Прецедент']].iloc[i][col]) for col in
+                  selected_data_second_page[['argument', 'Прецедент']].columns]) for i in
+         range(len(selected_data_second_page[['argument', 'Прецедент']]))],
+        style={'width': '100%'}
+    )
+
+    table_info_second_page = html.P(f"Число записей в таблице: {len(selected_data_second_page)}")
+
+    return html.Pre(parsed_json_second_page), table_info_second_page, table_second_page
+
 
 def select_method(data, reduced_json):
     selected_data = []
