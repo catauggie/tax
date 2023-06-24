@@ -1,11 +1,12 @@
 from dash import Dash, dcc, html, Input, Output, callback
 import json
 import pandas as pd
+import plotly.express as px
 
 filter_options = {
-    'причины': ['возврат/зачет', 'вычеты', 'документы'],
-    'последствия': ['документы', 'МНК']}#,
-    #'Классификация НО действий НП': ['взаимозависимые организации', 'дробление бизнеса']}
+    'причины': ['возврат/зачет', 'вычеты', 'документы', 'льготы', 'недоимка', 'расчеты', 'схемы'],
+    'последствия': ['документы', 'МНК', 'отказ в возврате/зачете', 'отказ в вычете', 'отказ  в льготе', 'штрафные санкции'],
+    'Классификация НО действий НП': ['взаимозависимые организации', 'дробление бизнеса']}
 
 def make_label_value(filter_options):
     label_value = []
@@ -27,7 +28,9 @@ app = Dash(__name__, suppress_callback_exceptions=True)
 app.layout = html.Div([
     html.Div(id='dynamic-dropdowns'),
     html.Div(id='decoded-json-output'),
-    html.Div(id='table-output', style={'maxHeight': '400px', 'overflow': 'scroll'})
+    html.Div(id='table-output', style={'maxHeight': '400px', 'overflow': 'scroll'}),
+    dcc.Graph(id='pie-chart'),
+    dcc.Graph(id='bar-chart')
 ])
 
 @app.callback(
@@ -52,6 +55,8 @@ def generate_dropdowns(_):
 @app.callback(
     Output('decoded-json-output', 'children'),
     Output('table-output', 'children'),
+    Output('pie-chart', 'figure'),
+    Output('bar-chart', 'figure'),
     [Input(f'demo-dropdown-{s}', 'value') for s in range(len(label_value_lists))]
 )
 def create_json(*selected_values):
@@ -64,7 +69,7 @@ def create_json(*selected_values):
 
     # Process selected data using the select_method function
     reduced_json = popping_null_json(json.loads(parsed_json))
-    res = select_method(df, reduced_json)#[['case_number', 'why_argument']]
+    res = select_method(df, reduced_json)
 
     selected_data = pd.concat(sort_by(res, 'case_number')).drop_duplicates()
 
@@ -78,7 +83,13 @@ def create_json(*selected_values):
         style={'width': '100%'}
     )
 
-    return html.Pre(parsed_json), table
+    # Create a pie chart for the column 'Категория спора'
+    pie_chart = px.pie(selected_data, names='Категория спора')
+
+    # Create a bar chart for the column 'law_court' with color based on a numerical variable
+    bar_chart = px.bar(selected_data['law_court'].value_counts())
+
+    return html.Pre(parsed_json), table, pie_chart, bar_chart
 
 def select_method(data, reduced_json):
     selected_data = []
