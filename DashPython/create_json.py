@@ -27,7 +27,7 @@ app = Dash(__name__, suppress_callback_exceptions=True)
 app.layout = html.Div([
     html.Div(id='dynamic-dropdowns'),
     html.Div(id='decoded-json-output'),
-    html.Div(id='table-output')
+    html.Div(id='table-output', style={'maxHeight': '400px', 'overflow': 'scroll'})
 ])
 
 @app.callback(
@@ -63,16 +63,19 @@ def create_json(*selected_values):
     parsed_json = json.dumps(selected_items, indent=4, ensure_ascii=False)
 
     # Process selected data using the select_method function
-    reduced_json = json.loads(parsed_json)
+    reduced_json = popping_null_json(json.loads(parsed_json))
     res = select_method(df, reduced_json)#[['case_number', 'why_argument']]
 
-    selected_data = pd.concat(sort_by(res, 'case_number'))[['case_number', 'why_argument']].drop_duplicates()
-    # Convert selected data to an HTML table
+    selected_data = pd.concat(sort_by(res, 'case_number')).drop_duplicates()
+
+    # Convert selected data to an HTML table with scrolling
     table = html.Table(
         # Header
-        [html.Tr([html.Th(col) for col in selected_data.columns])] +
+        [html.Tr([html.Th(col) for col in selected_data[['case_number', 'why_argument']].columns])] +
         # Rows
-        [html.Tr([html.Td(selected_data.iloc[i][col]) for col in selected_data.columns]) for i in range(len(selected_data))]
+        [html.Tr([html.Td(selected_data[['case_number', 'why_argument']].iloc[i][col]) for col in selected_data[['case_number', 'why_argument']].columns]) for i in
+         range(len(selected_data[['case_number', 'why_argument']]))],
+        style={'width': '100%'}
     )
 
     return html.Pre(parsed_json), table
@@ -104,6 +107,16 @@ def sort_by(data, col_by_group):
         data_col_by_group_list.append(data_col_by_group_s)
     return data_col_by_group_list
 
+def popping_null_json(null_json):
+    values_list = list(null_json.values())
+
+    empty_index = []
+    for v in range(len(values_list)):
+        if values_list[v] == [] or values_list[v] == None:
+            empty_index.append(v)
+
+    json_without_null = {k: v for i, (k, v) in enumerate(null_json.items()) if i not in empty_index}
+    return json_without_null
 
 if __name__ == '__main__':
     app.run_server(debug=True)
