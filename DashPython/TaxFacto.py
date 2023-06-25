@@ -3,6 +3,7 @@ from dash import Dash, dcc, html, Input, Output, callback
 import json
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 
 filter_options = {
         'Причины': ['возврат/зачет', 'вычеты', 'документы', 'льготы', 'недоимка', 'расчеты', 'схемы'],
@@ -56,25 +57,34 @@ app.layout = html.Div([
 def render_page_content(pathname):
     if pathname == '/page-1':
         return html.Div([
+            html.H1('Прецеденты'),
             html.Div(id='dynamic-dropdowns'),
             html.Div(id='decoded-json-output'),
             html.Div(id='table-info'),
             html.Div(id='table-output', style={'maxHeight': '400px', 'overflow': 'scroll'}),
-            dcc.Graph(id='pie-chart'),
+            html.Div([
+                dcc.Graph(id='pie-chart1'),
+                dcc.Graph(id='pie-chart2')
+            ], className='row'),
             dcc.Graph(id='bar-chart'),
             dcc.Graph(id='case-number-bar-chart')
         ])
     elif pathname == '/page-2':
         return html.Div([
-            html.H1('Second Page'),
+            html.H1('Аргументы'),
             html.Div(id='second-page-dynamic-dropdowns'),
             html.Div(id='second-page-decoded-json-output'),
             html.Div(id='second-page-table-info'),
-            html.Div(id='second-page-table-output', style={'maxHeight': '400px', 'overflow': 'scroll'})
+            html.Div(id='second-page-table-output', style={'maxHeight': '600px', 'overflow': 'scroll'})
         ])
     else:
         return html.Div([
-            html.H1('404 - Page not found')
+            html.H1('TaxFacto'),
+            html.H6('Это новый, не классический взгляд на судебную практику.'
+                    'Формулировки Tax Facto это квинтэссенция судебного толкования. '
+                    'Понимание тонкостей и желание убрать субъективные и механические '
+                    'ограничения для нахождения 100 процентного результата при поиске практики и '
+                    'стали основной идеей создания нашей системы')
         ])
 
 @app.callback(
@@ -119,12 +129,16 @@ def generate_second_page_dropdowns(_):
     Output('decoded-json-output', 'children'),
     Output('table-info', 'children'),
     Output('table-output', 'children'),
-    Output('pie-chart', 'figure'),
+    Output('pie-chart1', 'figure'),
+    Output('pie-chart2', 'figure'),
     Output('bar-chart', 'figure'),
     Output('case-number-bar-chart', 'figure'),
     [Input(f'demo-dropdown-{s}', 'value') for s in range(len(label_value_lists))]
 )
 def create_json(*selected_values):
+    if all(value is None for value in selected_values):
+        return "", "", go.Figure(), go.Figure()
+
     selected_items = {}
     for s, values in enumerate(selected_values):
         key = list(filter_options.keys())[s]
@@ -135,6 +149,9 @@ def create_json(*selected_values):
     # Process selected data using the select_method function
     reduced_json = popping_null_json(json.loads(parsed_json))
     res = select_method(df, reduced_json)
+
+    if res.empty:
+        return html.Pre(parsed_json), "", "", go.Figure(), go.Figure(), go.Figure(), go.Figure()
 
     selected_data = pd.concat(sort_by(res, 'Номер дела')).drop_duplicates()
 
@@ -148,8 +165,12 @@ def create_json(*selected_values):
         style={'width': '100%'}
     )
 
-    # Create a pie chart for the column 'Категория спора'
-    pie_chart = px.pie(selected_data, names='Категория спора')
+    # Create first pie chart for 'Категория спора'
+    pie_chart1 = px.pie(selected_data, names='Категория спора')
+
+    # Create second pie chart for 'Результат'
+    pie_chart2 = px.pie(selected_data, names='Результат')
+
 
     # Create a bar chart for the column 'law_court' with color based on a numerical variable
     bar_chart = px.bar(selected_data['law_court'].value_counts())
@@ -159,7 +180,7 @@ def create_json(*selected_values):
 
     table_info = html.P(f"Число записей в таблице: {len(selected_data)}")
 
-    return html.Pre(parsed_json), table_info, table, pie_chart, bar_chart, case_number_bar_chart
+    return html.Pre(parsed_json), table_info, table, pie_chart1, pie_chart2, bar_chart, case_number_bar_chart
 
 @app.callback(
     Output('second-page-decoded-json-output', 'children'),
@@ -177,16 +198,16 @@ def create_second_page_json(*selected_values):
     reduced_json_second_page = popping_null_json(json.loads(parsed_json_second_page))
     res = select_method(df, reduced_json_second_page)
 
-    selected_data_second_page = pd.concat(sort_by(res, 'argument')).drop_duplicates()
+    selected_data_second_page = pd.concat(sort_by(res, 'Аргумент')).drop_duplicates()
 
     # Convert selected data to an HTML table with scrolling
     table_second_page = html.Table(
         # Header
-        [html.Tr([html.Th(col) for col in selected_data_second_page[['argument', 'Прецедент']].columns])] +
+        [html.Tr([html.Th(col) for col in selected_data_second_page[['Аргумент', 'Прецедент']].columns])] +
         # Rows
-        [html.Tr([html.Td(selected_data_second_page[['argument', 'Прецедент']].iloc[i][col]) for col in
-                  selected_data_second_page[['argument', 'Прецедент']].columns]) for i in
-         range(len(selected_data_second_page[['argument', 'Прецедент']]))],
+        [html.Tr([html.Td(selected_data_second_page[['Аргумент', 'Прецедент']].iloc[i][col]) for col in
+                  selected_data_second_page[['Аргумент', 'Прецедент']].columns]) for i in
+         range(len(selected_data_second_page[['Аргумент', 'Прецедент']]))],
         style={'width': '100%'}
     )
 
