@@ -4,6 +4,7 @@ import json
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
+import base64
 
 filter_options = {
         'Причины': ['возврат/зачет', 'вычеты', 'документы', 'льготы', 'недоимка', 'расчеты', 'схемы'],
@@ -21,6 +22,10 @@ second_page_filter_options = {
     'Эпизод (статья)': ['статья 101 НК РФ', 'статья 381 НК РФ', 'статья 54.1 НК РФ'],
     'Тема прецедента': ['кадастровая стоимость', 'налоговые льготы', 'объект налогообложения', 'признание имущества недвижимым']
 }
+
+logo_path = 'D:/python/DashPython/logo.jpg'
+with open(logo_path, 'rb') as f:
+    encoded_logo = base64.b64encode(f.read()).decode('utf-8')
 
 def make_label_value(filter_options):
     label_value = []
@@ -46,8 +51,9 @@ app.layout = html.Div([
     html.Nav(
         className='navbar navbar-expand-lg navbar-dark bg-dark',
         children=[
-            html.A('Page 1', className='navbar-brand', href='/page-1'),
-            html.A('Page 2', className='navbar-brand', href='/page-2'),
+            html.Img(src='data:image/jpg;base64,' + encoded_logo, height="50px"),
+            html.A('Прецеденты', className='navbar-brand', href='/page-1'),
+            html.A('Аргументы', className='navbar-brand', href='/page-2'),
         ]
     ),
     html.Div(id='page-content')
