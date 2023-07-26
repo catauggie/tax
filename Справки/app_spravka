@@ -1,0 +1,274 @@
+import sys
+from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QVBoxLayout, QWidget, QPushButton, QFileDialog, QTextEdit
+from PyQt5.QtGui import QFont, QStandardItemModel, QDragEnterEvent, QDropEvent
+from PyQt5.QtCore import Qt, QMimeData, QFile, QIODevice, QTextStream
+
+import pytesseract
+from pdf2image import convert_from_path
+import re
+import csv
+from translate import Translator
+from word2number import w2n
+
+
+class DragDropLabel(QLabel):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.parent_window = parent
+        self.setAcceptDrops(True)
+
+    def dragEnterEvent(self, event: QDragEnterEvent):
+        if event.mimeData().hasUrls():
+            event.acceptProposedAction()
+
+    def dropEvent(self, event: QDropEvent):
+        if event.mimeData().hasUrls():
+            file_path = event.mimeData().urls()[0].toLocalFile()
+            self.parent_window.process_pdf(file_path)
+
+
+class MainWindow(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Проверь свою справку")
+        self.setGeometry(200, 200, 600, 400)
+
+        # Create the main widget and layout
+        widget = QWidget()
+        layout = QVBoxLayout()
+        widget.setLayout(layout)
+        self.setCentralWidget(widget)
+
+        # Create the header label
+        header_label = QLabel("Проверь свою справку")
+        header_label.setFont(QFont("Arial", 16))
+        layout.addWidget(header_label)
+
+        # Create the drag and drop zone
+        self.drag_drop_label = DragDropLabel(self)
+        self.drag_drop_label.setText("Перетащите сюда файлы .pdf")
+        self.drag_drop_label.setFixedSize(400, 100)
+        self.drag_drop_label.setStyleSheet("border: 2px dashed #aaa; border-radius: 10px;")
+        self.drag_drop_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(self.drag_drop_label)
+
+        # Create the result text box
+        self.result_textbox = QTextEdit()
+        layout.addWidget(self.result_textbox)
+
+        # Create the save button (initially disabled)
+        self.save_button = QPushButton("Save as CSV", enabled=False)
+        self.save_button.clicked.connect(self.save_to_csv)
+        layout.addWidget(self.save_button)
+
+        # Initialize variables
+        self.pdf_path = None
+        self.extracted_data = []  # Initialize as an empty list
+
+    def process_pdf(self, file_path):
+        if file_path:
+            try:
+                # Set the path to your Tesseract executable (change it if necessary)
+                pytesseract.pytesseract.tesseract_cmd = r'D:\Program Files\Tesseract-OCR\tesseract.exe'
+
+                # Convert PDF pages to images and perform OCR
+                pages = convert_from_path(file_path, dpi=300)  # Adjust the dpi if needed
+                extracted_data = []
+
+                for i, page in enumerate(pages):
+                    try:
+                        # Perform OCR on the image to recognize the text
+                        text = pytesseract.image_to_string(page, lang='rus')
+
+                        # Extract information
+                        tin = self.extract_tin(text)
+                        organization_name = self.extract_organization_name(text)
+                        address = self.extract_address(text)
+                        patient_name = self.extract_patient_name(text)
+                        patient_tin = self.extract_patient_tin(text)
+                        cost = self.extract_cost(text)
+                        amount = self.sum_total_amount(self.convert_sentence_to_number(cost)) + self.extract_digits(cost)[0] / 100
+                        dates = self.find_dates(text)
+
+
+                        # Add extracted data to the list
+                        extracted_data.append({"ИНН медицинского учреждения": tin,
+                                               "Название медицинского учреждения": organization_name,
+                                               "Адрес медицинского учреждения": address,
+                                               "ФИО пациента": patient_name,
+                                               "ИНН пациента": patient_tin,
+                                               "Стоимость услуги": amount,
+                                               "Дата оплаты": dates})
+
+                        print(f'Page {i + 1} processed successfully.')
+
+                    except Exception as e:
+                        print(f'Error processing page {i + 1}: {str(e)}')
+
+                # Save the extracted data
+                #self.extracted_data = extracted_data
+
+                # Append the newly extracted data to the existing data
+                self.extracted_data.extend(extracted_data)
+
+                # Generate the formatted result string
+                result_text = ""
+                for data in self.extracted_data:
+                    result_text += f"ИНН медицинского учреждения: {data['ИНН медицинского учреждения']}\n"
+                    result_text += f"Название медицинского учреждения: {data['Название медицинского учреждения']}\n"
+                    result_text += f"Адрес медицинского учреждения: {data['Адрес медицинского учреждения']}\n"
+                    result_text += f"ФИО пациента: {data['ФИО пациента']}\n"
+                    result_text += f"ИНН пациента: {data['ИНН пациента']}\n"
+                    result_text += f"Стоимость услуги: {data['Стоимость услуги']}\n"
+                    result_text += f"Дата оплаты: {data['Дата оплаты']}\n"
+                    result_text += "------------------------------------\n"
+
+                # Set the result text
+                self.result_textbox.setPlainText(result_text)
+
+                # Enable the save button
+                self.save_button.setEnabled(True)
+
+            except Exception as e:
+                print(f'Error processing PDF: {str(e)}')
+
+    def save_to_csv(self):
+        if self.extracted_data:
+            save_path, _ = QFileDialog.getSaveFileName(self, "Save CSV File", "", "CSV Files (*.csv)")
+            if save_path:
+                try:
+                    keys = self.extracted_data[0].keys()
+                    with open(save_path, 'w', newline='', encoding='utf-8-sig') as file:
+                        writer = csv.DictWriter(file, fieldnames=keys)
+                        writer.writeheader()
+                        writer.writerows(self.extracted_data)
+                    print("CSV file saved successfully.")
+                except Exception as e:
+                    print(f'Error saving CSV file: {str(e)}')
+
+    def extract_tin(self, text):
+        tin_pattern = r"(?i)ИНН\s*(\d{10})"
+        match = re.search(tin_pattern, text)
+        if match:
+            return match.group(1)
+        else:
+            return None
+
+    def extract_address(self, text):
+        address_pattern = r"(?i)(\d{6})\s*(.*?)(\w+[\s\w]+)"
+        match = re.search(address_pattern, text)
+        if match:
+            zip_code = match.group(1)
+            street = match.group(2)
+            city = match.group(3)
+            return f"{zip_code} {street} {city}"
+        else:
+            return None
+
+    def extract_patient_name(self, text):
+        name_pattern = r"(?i)ФИО пациента:\s*(\S+\s\S+\s\S+)"
+        match = re.search(name_pattern, text)
+        if match:
+            return match.group(1)
+        else:
+            return None
+
+    def extract_patient_tin(self, text):
+        tin_pattern = r"(?i)ИНН налогоплательщика:\s*(\d{12})"
+        match = re.search(tin_pattern, text)
+        if match:
+            return match.group(1)
+        else:
+            return None
+
+    def extract_cost(self, text):
+        cost_pattern = r"(?i)(?:стоимость|стоимости|стоимостью):\s*(.*?)(?:\.|\n)"
+        match = re.search(cost_pattern, text)
+        if match:
+            cost_sentence = match.group(1)
+            cost_sentence_english = self.translate_to_english(cost_sentence)
+            return cost_sentence_english
+        else:
+            return None
+
+    def translate_to_english(self, sentence):
+        translator = Translator(from_lang='ru', to_lang='en')
+        translation = translator.translate(sentence)
+        return translation
+
+    def convert_sentence_to_number(self, sentence):
+        words = sentence.split()
+        number_words = []
+        fractional_part = None
+        for i, word in enumerate(words):
+            if word == 'rubles':
+                break
+            elif word == 'kopecks':
+                if i >= 3 and words[i - 2].isdigit() and len(words[i - 2]) == 2:
+                    fractional_part = words[i - 2]
+                    number_words.append(words[i - 3])  # Keep the word before "kopecks"
+            try:
+                number = w2n.word_to_num(word)
+                number_words.append(str(number))
+            except ValueError:
+                number_words.append(word)
+        result = " ".join(number_words)
+
+        # Add the fractional part to the result if available
+        if fractional_part is not None:
+            result += " " + fractional_part + " kopecks"
+
+        return result
+
+    def extract_digits(self, sentence):
+        digits = []
+        words = sentence.split()
+        for word in words:
+            if word.isdigit():
+                digits.append(int(word))
+        return digits
+
+    def sum_total_amount(self, sentence):
+        words = sentence.split()
+        total_amount = 0
+        previous_number = 0
+
+        for word in words:
+            if word == 'rubles':
+                break
+
+            try:
+                number = w2n.word_to_num(word)
+                if number == 100:
+                    previous_number *= number
+                elif number >= 1000:
+                    total_amount += previous_number * number
+                    previous_number = 0
+                else:
+                    previous_number += number
+            except ValueError:
+                continue
+
+        total_amount += previous_number
+
+        return total_amount
+
+    def find_dates(self, text):
+        date_pattern = r"\b\d{2}\.\d{2}\.\d{4}\b"
+        dates = re.findall(date_pattern, text)
+        return dates
+
+    def extract_organization_name(self, text):
+        name_pattern = r'(?i)ООО\s+"([^"]+)"'
+        match = re.search(name_pattern, text)
+        if match:
+            organization_name = match.group(1)
+            return organization_name.strip()
+        else:
+            return None
+
+if __name__ == "__main__":
+    app = QApplication(sys.argv)
+    window = MainWindow()
+    window.show()
+    sys.exit(app.exec_())
